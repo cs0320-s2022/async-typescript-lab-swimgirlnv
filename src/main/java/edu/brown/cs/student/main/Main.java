@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import com.google.common.collect.ImmutableMap;
@@ -14,6 +15,8 @@ import freemarker.template.Configuration;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
+import org.json.JSONException;
+import org.json.JSONObject;
 import spark.*;
 import spark.template.freemarker.FreeMarkerEngine;
 
@@ -62,6 +65,7 @@ public final class Main {
     // TODO: create a call to Spark.post to make a POST request to a URL which
     // will handle getting matchmaking results for the input
     // It should only take in the route and a new ResultsHandler
+    Spark.post("/matches", new ResultsHandler());
     Spark.options("/*", (request, response) -> {
       String accessControlRequestHeaders = request.headers("Access-Control-Request-Headers");
       if (accessControlRequestHeaders != null) {
@@ -107,17 +111,35 @@ public final class Main {
   private static class ResultsHandler implements Route {
     @Override
     public String handle(Request req, Response res) {
+
+      JSONObject reqJson = null;
+      try {
+        reqJson = new JSONObject(req.body());
+      } catch(JSONException e) {
+        return "Error loading Json " + e.getMessage();
+      }
       // TODO: Get JSONObject from req and use it to get the value of the sun, moon,
       // and rising
       // for generating matches
-
+      String sun = null;
+      String moon = null;
+      String rising = null;
+      try {
+        sun = reqJson.getString("sun");
+        moon = reqJson.getString("moon");
+        rising = reqJson.getString("rising");
+      } catch (JSONException e) {
+        e.printStackTrace();
+      }
+      List<String> matches = MatchMaker.makeMatches(sun, moon, rising);
       // TODO: use the MatchMaker.makeMatches method to get matches
 
       // TODO: create an immutable map using the matches
-
+      ImmutableMap<String, List<String>> matchesMap = ImmutableMap.<String, List<String>>builder()
+          .put("matches", matches).build();
       // TODO: return a json of the suggestions (HINT: use GSON.toJson())
       Gson GSON = new Gson();
-      return null;
+      return GSON.toJson(matchesMap);
     }
   }
 }
